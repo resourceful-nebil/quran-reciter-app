@@ -20,8 +20,7 @@ dependencies:
   just_audio_background: ^0.0.1-beta.12
 
   # State Management
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
+  flutter_bloc: ^9.1.0
 
   # UI
   google_fonts: ^6.2.1
@@ -37,10 +36,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-  build_runner: ^2.4.11
-  riverpod_generator: ^2.4.0
-  custom_lint: ^0.6.4
-  riverpod_lint: ^2.3.10
+  bloc_test: ^10.0.0
 
 flutter:
   uses-material-design: true

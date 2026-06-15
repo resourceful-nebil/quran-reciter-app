@@ -14,7 +14,7 @@
 6. [Theme & Design System](#6-theme--design-system)
 7. [Domain Layer](#7-domain-layer)
 8. [Data Layer](#8-data-layer)
-9. [Application Layer (Providers)](#9-application-layer-providers)
+9. [Application Layer (BLoC)](#9-application-layer-bloc)
 10. [Presentation Layer — Screens](#10-presentation-layer--screens)
 11. [Audio Service Setup](#11-audio-service-setup)
 12. [main.dart](#12-maindart)
@@ -44,11 +44,11 @@ A dedicated Quran recitation app for **Sheikh Bandar Baleelah**, hosting all 114
 | Concern | Package |
 |---|---|
 | Framework | Flutter 3.x |
-| State Management | Riverpod 2.x |
+| State Management | flutter_bloc (BLoC pattern) |
 | Audio Playback | just_audio |
 | Background Audio | audio_service |
 | Remote Data | cloud_firestore |
-| Dependency Injection | Riverpod (providers as DI) |
+| Dependency Injection | RepositoryProvider + BlocProvider |
 | Local Cache | shared_preferences |
 | Fonts | google_fonts (Amiri for Arabic) |
 | Image Cache | cached_network_image |
@@ -61,9 +61,9 @@ This app follows **Flutter Clean Architecture** with 3 core layers:
 
 ```
 ┌─────────────────────────────────────┐
-│        PRESENTATION LAYER           │  ← Screens, Widgets, Riverpod UI providers
+│        PRESENTATION LAYER           │  ← Screens, Widgets, BlocBuilder / BlocListener
 ├─────────────────────────────────────┤
-│        APPLICATION LAYER            │  ← Use Cases, State Notifiers
+│        APPLICATION LAYER            │  ← BLoCs (ReciterBloc, PlayerBloc)
 ├─────────────────────────────────────┤
 │          DOMAIN LAYER               │  ← Entities, Repository Interfaces
 ├─────────────────────────────────────┤
@@ -75,7 +75,7 @@ This app follows **Flutter Clean Architecture** with 3 core layers:
 - **Domain layer has zero Flutter/Firebase imports** — pure Dart only
 - **Data layer implements domain interfaces** — the domain never knows about Firebase
 - **Application layer orchestrates use cases** — business logic lives here, not in screens
-- **Presentation layer is dumb** — screens only call providers and render state
+- **Presentation layer is dumb** — screens dispatch events and render state via `BlocBuilder`
 - **Dependencies point inward** — outer layers know about inner layers, never the reverse
 
 ---
@@ -119,12 +119,15 @@ lib/
 │       └── quran_repository_impl.dart
 │
 ├── application/
-│   ├── providers/
-│   │   ├── quran_providers.dart           ← all Riverpod providers
-│   │   └── audio_providers.dart
-│   └── notifiers/
-│       ├── surah_list_notifier.dart
-│       └── player_notifier.dart
+│   └── blocs/
+│       ├── reciter/
+│       │   ├── reciter_bloc.dart
+│       │   ├── reciter_event.dart
+│       │   └── reciter_state.dart
+│       └── player/
+│           ├── player_bloc.dart
+│           ├── player_event.dart
+│           └── player_state.dart
 │
 └── presentation/
     ├── screens/
@@ -175,8 +178,7 @@ dependencies:
   just_audio_background: ^0.0.1-beta.12
 
   # State Management
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
+  flutter_bloc: ^9.1.0
 
   # UI
   google_fonts: ^6.2.1
@@ -192,10 +194,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-  build_runner: ^2.4.11
-  riverpod_generator: ^2.4.0
-  custom_lint: ^0.6.4
-  riverpod_lint: ^2.3.10
+  bloc_test: ^10.0.0
 
 flutter:
   uses-material-design: true
@@ -704,88 +703,192 @@ class QuranRepositoryImpl implements QuranRepository {
 
 ---
 
-## 9. Application Layer (Providers)
+## 9. Application Layer (BLoC)
 
-### `lib/application/providers/quran_providers.dart`
+State is managed with **flutter_bloc**. Repositories are injected via `RepositoryProvider`; BLoCs are provided at the app root via `MultiBlocProvider` (see Section 12).
+
+### `lib/application/blocs/reciter/reciter_event.dart`
 
 ```dart
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/datasources/local/cache_datasource.dart';
-import '../../data/datasources/remote/firestore_datasource.dart';
-import '../../data/repositories/quran_repository_impl.dart';
-import '../../domain/entities/reciter.dart';
-import '../../domain/entities/surah.dart';
-import '../../domain/repositories/quran_repository.dart';
+import 'package:equatable/equatable.dart';
 
-// ------------------------------------
-// Infrastructure providers
-// ------------------------------------
+sealed class ReciterEvent extends Equatable {
+  const ReciterEvent();
 
-final firestoreDataSourceProvider = Provider<FirestoreDataSource>((ref) {
-  return FirestoreDataSourceImpl();
-});
+  @override
+  List<Object?> get props => [];
+}
 
-final cacheDataSourceProvider = Provider<CacheDataSource>((ref) {
-  return CacheDataSourceImpl();
-});
+class ReciterLoadRequested extends ReciterEvent {
+  const ReciterLoadRequested();
+}
 
-final quranRepositoryProvider = Provider<QuranRepository>((ref) {
-  return QuranRepositoryImpl(
-    remote: ref.watch(firestoreDataSourceProvider),
-    cache: ref.watch(cacheDataSourceProvider),
-  );
-});
+class ReciterRetryRequested extends ReciterEvent {
+  const ReciterRetryRequested();
+}
+```
 
-// ------------------------------------
-// Data providers
-// ------------------------------------
+### `lib/application/blocs/reciter/reciter_state.dart`
+
+```dart
+import 'package:equatable/equatable.dart';
+import '../../../domain/entities/reciter.dart';
+
+sealed class ReciterState extends Equatable {
+  const ReciterState();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class ReciterInitial extends ReciterState {
+  const ReciterInitial();
+}
+
+class ReciterLoading extends ReciterState {
+  const ReciterLoading();
+}
+
+class ReciterLoaded extends ReciterState {
+  final Reciter reciter;
+
+  const ReciterLoaded(this.reciter);
+
+  @override
+  List<Object?> get props => [reciter];
+}
+
+class ReciterError extends ReciterState {
+  final String message;
+
+  const ReciterError([this.message = 'Failed to load surahs']);
+
+  @override
+  List<Object?> get props => [message];
+}
+```
+
+### `lib/application/blocs/reciter/reciter_bloc.dart`
+
+```dart
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../domain/repositories/quran_repository.dart';
+import 'reciter_event.dart';
+import 'reciter_state.dart';
 
 const String kReciterId = 'bandar-baleelah';
 
-final reciterProvider = FutureProvider<Reciter>((ref) async {
-  final repo = ref.watch(quranRepositoryProvider);
-  return repo.fetchReciter(kReciterId);
-});
+class ReciterBloc extends Bloc<ReciterEvent, ReciterState> {
+  final QuranRepository _repository;
 
-final surahListProvider = Provider<AsyncValue<List<Surah>>>((ref) {
-  return ref.watch(reciterProvider).whenData((reciter) => reciter.surahs);
-});
+  ReciterBloc(this._repository) : super(const ReciterInitial()) {
+    on<ReciterLoadRequested>(_onLoadRequested);
+    on<ReciterRetryRequested>(_onLoadRequested);
+  }
+
+  Future<void> _onLoadRequested(
+    ReciterEvent event,
+    Emitter<ReciterState> emit,
+  ) async {
+    emit(const ReciterLoading());
+    try {
+      final reciter = await _repository.fetchReciter(kReciterId);
+      emit(ReciterLoaded(reciter));
+    } catch (_) {
+      emit(const ReciterError());
+    }
+  }
+}
 ```
 
-### `lib/application/providers/audio_providers.dart`
+### `lib/application/blocs/player/player_event.dart`
 
 ```dart
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart';
-import '../notifiers/player_notifier.dart';
-
-final audioPlayerProvider = Provider<AudioPlayer>((ref) {
-  final player = AudioPlayer();
-  ref.onDispose(player.dispose);
-  return player;
-});
-
-final playerNotifierProvider =
-    StateNotifierProvider<PlayerNotifier, PlayerState>((ref) {
-  final player = ref.watch(audioPlayerProvider);
-  return PlayerNotifier(player);
-});
-```
-
-### `lib/application/notifiers/player_notifier.dart`
-
-```dart
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart';
-import '../../domain/entities/surah.dart';
-
-// ------------------------------------
-// Player State
-// ------------------------------------
+import 'package:equatable/equatable.dart';
+import '../../../domain/entities/surah.dart';
 
 enum PlayerStatus { idle, loading, playing, paused, error }
 
-class PlayerState {
+sealed class PlayerEvent extends Equatable {
+  const PlayerEvent();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class PlayerPlaySurahRequested extends PlayerEvent {
+  final Surah surah;
+  const PlayerPlaySurahRequested(this.surah);
+  @override
+  List<Object?> get props => [surah];
+}
+
+class PlayerTogglePlayPauseRequested extends PlayerEvent {
+  const PlayerTogglePlayPauseRequested();
+}
+
+class PlayerSeekRequested extends PlayerEvent {
+  final Duration position;
+  const PlayerSeekRequested(this.position);
+  @override
+  List<Object?> get props => [position];
+}
+
+class PlayerPlayNextRequested extends PlayerEvent {
+  final List<Surah> surahs;
+  const PlayerPlayNextRequested(this.surahs);
+  @override
+  List<Object?> get props => [surahs];
+}
+
+class PlayerPlayPreviousRequested extends PlayerEvent {
+  final List<Surah> surahs;
+  const PlayerPlayPreviousRequested(this.surahs);
+  @override
+  List<Object?> get props => [surahs];
+}
+
+class PlayerStopRequested extends PlayerEvent {
+  const PlayerStopRequested();
+}
+
+// Internal events from audio player streams
+class PlayerPositionUpdated extends PlayerEvent {
+  final Duration position;
+  const PlayerPositionUpdated(this.position);
+  @override
+  List<Object?> get props => [position];
+}
+
+class PlayerDurationUpdated extends PlayerEvent {
+  final Duration duration;
+  const PlayerDurationUpdated(this.duration);
+  @override
+  List<Object?> get props => [duration];
+}
+
+class PlayerPlaybackStateUpdated extends PlayerEvent {
+  final bool isPlaying;
+  final bool isLoading;
+  final bool isCompleted;
+  const PlayerPlaybackStateUpdated({
+    required this.isPlaying,
+    required this.isLoading,
+    required this.isCompleted,
+  });
+  @override
+  List<Object?> get props => [isPlaying, isLoading, isCompleted];
+}
+```
+
+### `lib/application/blocs/player/player_state.dart`
+
+```dart
+import 'package:equatable/equatable.dart';
+import '../../../domain/entities/surah.dart';
+import 'player_event.dart';
+
+class PlayerState extends Equatable {
   final Surah? currentSurah;
   final PlayerStatus status;
   final Duration position;
@@ -818,73 +921,109 @@ class PlayerState {
 
   bool get isPlaying => status == PlayerStatus.playing;
   bool get isLoading => status == PlayerStatus.loading;
+
+  @override
+  List<Object?> get props => [currentSurah, status, position, duration, errorMessage];
 }
+```
 
-// ------------------------------------
-// Player Notifier
-// ------------------------------------
+### `lib/application/blocs/player/player_bloc.dart`
 
-class PlayerNotifier extends StateNotifier<PlayerState> {
-  final AudioPlayer _player;
+```dart
+import 'dart:async';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:just_audio/just_audio.dart' as ja;
+import 'player_event.dart';
+import 'player_state.dart';
 
-  PlayerNotifier(this._player) : super(const PlayerState()) {
+class PlayerBloc extends Bloc<PlayerEvent, PlayerState> {
+  final ja.AudioPlayer _player;
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<Duration?>? _durationSub;
+  StreamSubscription<ja.PlayerState>? _playerStateSub;
+
+  PlayerBloc(this._player) : super(const PlayerState()) {
+    on<PlayerPlaySurahRequested>(_onPlaySurah);
+    on<PlayerTogglePlayPauseRequested>(_onTogglePlayPause);
+    on<PlayerSeekRequested>(_onSeek);
+    on<PlayerPlayNextRequested>(_onPlayNext);
+    on<PlayerPlayPreviousRequested>(_onPlayPrevious);
+    on<PlayerStopRequested>(_onStop);
+    on<PlayerPositionUpdated>(_onPositionUpdated);
+    on<PlayerDurationUpdated>(_onDurationUpdated);
+    on<PlayerPlaybackStateUpdated>(_onPlaybackStateUpdated);
     _listenToPlayer();
   }
 
   void _listenToPlayer() {
-    // Position updates
-    _player.positionStream.listen((position) {
-      state = state.copyWith(position: position);
+    _positionSub = _player.positionStream.listen(
+      (position) => add(PlayerPositionUpdated(position)),
+    );
+    _durationSub = _player.durationStream.listen((duration) {
+      if (duration != null) add(PlayerDurationUpdated(duration));
     });
-
-    // Duration updates
-    _player.durationStream.listen((duration) {
-      if (duration != null) {
-        state = state.copyWith(duration: duration);
-      }
-    });
-
-    // Playback state updates
-    _player.playerStateStream.listen((playerState) {
-      if (playerState.playing) {
-        state = state.copyWith(status: PlayerStatus.playing);
-      } else if (playerState.processingState == ProcessingState.loading ||
-          playerState.processingState == ProcessingState.buffering) {
-        state = state.copyWith(status: PlayerStatus.loading);
-      } else if (playerState.processingState == ProcessingState.completed) {
-        state = state.copyWith(status: PlayerStatus.paused, position: Duration.zero);
-      } else {
-        state = state.copyWith(status: PlayerStatus.paused);
-      }
+    _playerStateSub = _player.playerStateStream.listen((playerState) {
+      add(PlayerPlaybackStateUpdated(
+        isPlaying: playerState.playing,
+        isLoading: playerState.processingState == ja.ProcessingState.loading ||
+            playerState.processingState == ja.ProcessingState.buffering,
+        isCompleted: playerState.processingState == ja.ProcessingState.completed,
+      ));
     });
   }
 
-  Future<void> playSurah(Surah surah) async {
-    try {
-      // If same surah, toggle play/pause
-      if (state.currentSurah?.number == surah.number) {
-        await togglePlayPause();
-        return;
-      }
+  void _onPositionUpdated(PlayerPositionUpdated event, Emitter<PlayerState> emit) {
+    emit(state.copyWith(position: event.position));
+  }
 
-      state = state.copyWith(
-        currentSurah: surah,
-        status: PlayerStatus.loading,
-        position: Duration.zero,
-        duration: Duration.zero,
-      );
+  void _onDurationUpdated(PlayerDurationUpdated event, Emitter<PlayerState> emit) {
+    emit(state.copyWith(duration: event.duration));
+  }
 
-      await _player.setUrl(surah.audioUrl);
-      await _player.play();
-    } catch (e) {
-      state = state.copyWith(
-        status: PlayerStatus.error,
-        errorMessage: 'Failed to play surah. Please try again.',
-      );
+  void _onPlaybackStateUpdated(
+    PlayerPlaybackStateUpdated event,
+    Emitter<PlayerState> emit,
+  ) {
+    if (event.isPlaying) {
+      emit(state.copyWith(status: PlayerStatus.playing));
+    } else if (event.isLoading) {
+      emit(state.copyWith(status: PlayerStatus.loading));
+    } else if (event.isCompleted) {
+      emit(state.copyWith(status: PlayerStatus.paused, position: Duration.zero));
+    } else {
+      emit(state.copyWith(status: PlayerStatus.paused));
     }
   }
 
-  Future<void> togglePlayPause() async {
+  Future<void> _onPlaySurah(
+    PlayerPlaySurahRequested event,
+    Emitter<PlayerState> emit,
+  ) async {
+    try {
+      if (state.currentSurah?.number == event.surah.number) {
+        add(const PlayerTogglePlayPauseRequested());
+        return;
+      }
+      emit(state.copyWith(
+        currentSurah: event.surah,
+        status: PlayerStatus.loading,
+        position: Duration.zero,
+        duration: Duration.zero,
+      ));
+      await _player.setUrl(event.surah.audioUrl);
+      await _player.play();
+    } catch (_) {
+      emit(state.copyWith(
+        status: PlayerStatus.error,
+        errorMessage: 'Failed to play surah. Please try again.',
+      ));
+    }
+  }
+
+  Future<void> _onTogglePlayPause(
+    PlayerTogglePlayPauseRequested event,
+    Emitter<PlayerState> emit,
+  ) async {
     if (_player.playing) {
       await _player.pause();
     } else {
@@ -892,37 +1031,46 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
-  Future<void> seekTo(Duration position) async {
-    await _player.seek(position);
+  Future<void> _onSeek(PlayerSeekRequested event, Emitter<PlayerState> emit) async {
+    await _player.seek(event.position);
   }
 
-  Future<void> playNext(List<Surah> surahs) async {
+  Future<void> _onPlayNext(
+    PlayerPlayNextRequested event,
+    Emitter<PlayerState> emit,
+  ) async {
     final current = state.currentSurah;
     if (current == null) return;
-    final idx = surahs.indexWhere((s) => s.number == current.number);
-    if (idx < surahs.length - 1) {
-      await playSurah(surahs[idx + 1]);
+    final idx = event.surahs.indexWhere((s) => s.number == current.number);
+    if (idx < event.surahs.length - 1) {
+      add(PlayerPlaySurahRequested(event.surahs[idx + 1]));
     }
   }
 
-  Future<void> playPrevious(List<Surah> surahs) async {
+  Future<void> _onPlayPrevious(
+    PlayerPlayPreviousRequested event,
+    Emitter<PlayerState> emit,
+  ) async {
     final current = state.currentSurah;
     if (current == null) return;
-    final idx = surahs.indexWhere((s) => s.number == current.number);
+    final idx = event.surahs.indexWhere((s) => s.number == current.number);
     if (idx > 0) {
-      await playSurah(surahs[idx - 1]);
+      add(PlayerPlaySurahRequested(event.surahs[idx - 1]));
     }
   }
 
-  Future<void> stop() async {
+  Future<void> _onStop(PlayerStopRequested event, Emitter<PlayerState> emit) async {
     await _player.stop();
-    state = const PlayerState();
+    emit(const PlayerState());
   }
 
   @override
-  void dispose() {
+  Future<void> close() {
+    _positionSub?.cancel();
+    _durationSub?.cancel();
+    _playerStateSub?.cancel();
     _player.dispose();
-    super.dispose();
+    return super.close();
   }
 }
 ```
@@ -1161,82 +1309,84 @@ class AudioProgressBar extends StatelessWidget {
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../application/notifiers/player_notifier.dart';
-import '../../application/providers/audio_providers.dart';
-import '../../application/providers/quran_providers.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../application/blocs/player/player_bloc.dart';
+import '../../application/blocs/player/player_event.dart';
+import '../../application/blocs/player/player_state.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../screens/player/player_screen.dart';
 
-class MiniPlayer extends ConsumerWidget {
+class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final playerState = ref.watch(playerNotifierProvider);
+  Widget build(BuildContext context) {
+    return BlocBuilder<PlayerBloc, PlayerState>(
+      builder: (context, playerState) {
+        if (playerState.currentSurah == null) return const SizedBox.shrink();
 
-    if (playerState.currentSurah == null) return const SizedBox.shrink();
-
-    return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const PlayerScreen()),
-      ),
-      child: Container(
-        height: 64,
-        decoration: BoxDecoration(
-          color: AppColors.primaryDarkTeal,
-          border: Border(
-            top: BorderSide(color: AppColors.gold.withOpacity(0.3), width: 0.5),
+        return GestureDetector(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const PlayerScreen()),
           ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            // Surah info
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    playerState.currentSurah!.nameEn,
-                    style: AppTextStyles.surahTitle.copyWith(fontSize: 14),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    'Sheikh Bandar Baleelah',
-                    style: AppTextStyles.caption,
-                  ),
-                ],
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppColors.primaryDarkTeal,
+              border: Border(
+                top: BorderSide(color: AppColors.gold.withOpacity(0.3), width: 0.5),
               ),
             ),
-            // Controls
-            if (playerState.isLoading)
-              const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.gold,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        playerState.currentSurah!.nameEn,
+                        style: AppTextStyles.surahTitle.copyWith(fontSize: 14),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Sheikh Bandar Baleelah',
+                        style: AppTextStyles.caption,
+                      ),
+                    ],
+                  ),
                 ),
-              )
-            else
-              IconButton(
-                icon: Icon(
-                  playerState.isPlaying
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
-                  color: AppColors.gold,
-                  size: 32,
-                ),
-                onPressed: () {
-                  ref.read(playerNotifierProvider.notifier).togglePlayPause();
-                },
-              ),
-          ],
-        ),
-      ),
+                if (playerState.isLoading)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.gold,
+                    ),
+                  )
+                else
+                  IconButton(
+                    icon: Icon(
+                      playerState.isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      color: AppColors.gold,
+                      size: 32,
+                    ),
+                    onPressed: () {
+                      context.read<PlayerBloc>().add(
+                            const PlayerTogglePlayPauseRequested(),
+                          );
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1246,20 +1396,22 @@ class MiniPlayer extends ConsumerWidget {
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../application/providers/quran_providers.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../application/blocs/reciter/reciter_bloc.dart';
+import '../../../application/blocs/reciter/reciter_event.dart';
+import '../../../application/blocs/reciter/reciter_state.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../surah_list/surah_list_screen.dart';
 
-class SplashScreen extends ConsumerStatefulWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  ConsumerState<SplashScreen> createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen>
+class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
@@ -1279,14 +1431,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _controller.forward();
 
     // Prefetch data while splash is showing
-    ref.read(reciterProvider.future).then((_) {
-      Future.delayed(const Duration(milliseconds: 2200), () {
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const SurahListScreen()),
-          );
-        }
-      });
+    context.read<ReciterBloc>().add(const ReciterLoadRequested());
+
+    Future.delayed(const Duration(milliseconds: 2200), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const SurahListScreen()),
+        );
+      }
     });
   }
 
@@ -1308,14 +1460,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo
                 Image.asset(
                   'assets/images/logo.png',
                   width: 120,
                   height: 120,
                 ),
                 const SizedBox(height: 32),
-                // Bismillah
                 const Text(
                   'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
                   textDirection: TextDirection.rtl,
@@ -1354,25 +1504,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../application/notifiers/player_notifier.dart';
-import '../../../application/providers/audio_providers.dart';
-import '../../../application/providers/quran_providers.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../application/blocs/player/player_bloc.dart';
+import '../../../application/blocs/player/player_event.dart';
+import '../../../application/blocs/player/player_state.dart';
+import '../../../application/blocs/reciter/reciter_bloc.dart';
+import '../../../application/blocs/reciter/reciter_event.dart';
+import '../../../application/blocs/reciter/reciter_state.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../domain/entities/surah.dart';
 import '../../widgets/mini_player.dart';
 import '../../widgets/surah_card.dart';
 import '../player/player_screen.dart';
 
-class SurahListScreen extends ConsumerWidget {
+class SurahListScreen extends StatelessWidget {
   const SurahListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final surahListAsync = ref.watch(reciterProvider);
-    final playerState = ref.watch(playerNotifierProvider);
-
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -1386,57 +1535,66 @@ class SurahListScreen extends ConsumerWidget {
       body: Column(
         children: [
           Expanded(
-            child: surahListAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: AppColors.gold),
-              ),
-              error: (e, _) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.wifi_off_rounded,
-                        color: AppColors.textMuted, size: 48),
-                    const SizedBox(height: 16),
-                    Text('Failed to load surahs',
-                        style: AppTextStyles.surahTitle),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => ref.refresh(reciterProvider),
-                      child: const Text('Retry',
-                          style: TextStyle(color: AppColors.gold)),
+            child: BlocBuilder<ReciterBloc, ReciterState>(
+              builder: (context, reciterState) {
+                return switch (reciterState) {
+                  ReciterInitial() || ReciterLoading() => const Center(
+                      child: CircularProgressIndicator(color: AppColors.gold),
                     ),
-                  ],
-                ),
-              ),
-              data: (reciter) => ListView.builder(
-                padding: const EdgeInsets.only(top: 8, bottom: 16),
-                itemCount: reciter.surahs.length,
-                itemBuilder: (context, index) {
-                  final surah = reciter.surahs[index];
-                  final isPlaying =
-                      playerState.currentSurah?.number == surah.number &&
-                          playerState.isPlaying;
-                  final isLoading =
-                      playerState.currentSurah?.number == surah.number &&
-                          playerState.isLoading;
+                  ReciterError(:final message) => Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.wifi_off_rounded,
+                              color: AppColors.textMuted, size: 48),
+                          const SizedBox(height: 16),
+                          Text(message, style: AppTextStyles.surahTitle),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () => context.read<ReciterBloc>().add(
+                                  const ReciterRetryRequested(),
+                                ),
+                            child: const Text('Retry',
+                                style: TextStyle(color: AppColors.gold)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ReciterLoaded(:final reciter) => BlocBuilder<PlayerBloc, PlayerState>(
+                      builder: (context, playerState) {
+                        return ListView.builder(
+                          padding: const EdgeInsets.only(top: 8, bottom: 16),
+                          itemCount: reciter.surahs.length,
+                          itemBuilder: (context, index) {
+                            final surah = reciter.surahs[index];
+                            final isPlaying =
+                                playerState.currentSurah?.number == surah.number &&
+                                    playerState.isPlaying;
+                            final isLoading =
+                                playerState.currentSurah?.number == surah.number &&
+                                    playerState.isLoading;
 
-                  return SurahCard(
-                    surah: surah,
-                    isPlaying: isPlaying,
-                    isLoading: isLoading,
-                    onTap: () {
-                      ref
-                          .read(playerNotifierProvider.notifier)
-                          .playSurah(surah);
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const PlayerScreen(),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
+                            return SurahCard(
+                              surah: surah,
+                              isPlaying: isPlaying,
+                              isLoading: isLoading,
+                              onTap: () {
+                                context.read<PlayerBloc>().add(
+                                      PlayerPlaySurahRequested(surah),
+                                    );
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const PlayerScreen(),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
+                };
+              },
             ),
           ),
           const MiniPlayer(),
@@ -1451,78 +1609,80 @@ class SurahListScreen extends ConsumerWidget {
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../application/notifiers/player_notifier.dart';
-import '../../../application/providers/audio_providers.dart';
-import '../../../application/providers/quran_providers.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../application/blocs/player/player_bloc.dart';
+import '../../../application/blocs/player/player_event.dart';
+import '../../../application/blocs/player/player_state.dart';
+import '../../../application/blocs/reciter/reciter_bloc.dart';
+import '../../../application/blocs/reciter/reciter_state.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../widgets/arabic_text.dart';
 import '../../widgets/audio_progress_bar.dart';
 
-class PlayerScreen extends ConsumerWidget {
+class PlayerScreen extends StatelessWidget {
   const PlayerScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final playerState = ref.watch(playerNotifierProvider);
-    final reciterAsync = ref.watch(reciterProvider);
-    final surah = playerState.currentSurah;
+  Widget build(BuildContext context) {
+    return BlocBuilder<PlayerBloc, PlayerState>(
+      builder: (context, playerState) {
+        final surah = playerState.currentSurah;
 
-    if (surah == null) {
-      return const Scaffold(
-        body: Center(child: Text('No surah selected')),
-      );
-    }
+        if (surah == null) {
+          return const Scaffold(
+            body: Center(child: Text('No surah selected')),
+          );
+        }
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.keyboard_arrow_down_rounded,
-              color: AppColors.textLight, size: 32),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text('Now Playing', style: AppTextStyles.caption),
-        actions: [
-          // Placeholder for future share button
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Sheikh artwork / photo
-          Expanded(
-            flex: 4,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.gold.withOpacity(0.4), width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryTeal.withOpacity(0.4),
-                      blurRadius: 30,
-                      spreadRadius: 5,
+        return Scaffold(
+          backgroundColor: AppColors.backgroundDark,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            leading: IconButton(
+              icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.textLight, size: 32),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            title: Text('Now Playing', style: AppTextStyles.caption),
+            actions: [
+              const SizedBox(width: 16),
+            ],
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.gold.withOpacity(0.4), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryTeal.withOpacity(0.4),
+                          blurRadius: 30,
+                          spreadRadius: 5,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    'assets/images/sheikh_photo.jpg',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: AppColors.backgroundCard,
-                      child: const Center(
-                        child: Text(
-                          '﷽',
-                          style: TextStyle(
-                            fontFamily: 'Amiri',
-                            fontSize: 48,
-                            color: AppColors.gold,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.asset(
+                        'assets/images/sheikh_photo.jpg',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: AppColors.backgroundCard,
+                          child: const Center(
+                            child: Text(
+                              '﷽',
+                              style: TextStyle(
+                                fontFamily: 'Amiri',
+                                fontSize: 48,
+                                color: AppColors.gold,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -1530,125 +1690,116 @@ class PlayerScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-            ),
-          ),
-
-          // Surah info
-          Expanded(
-            flex: 3,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  ArabicText(
-                    text: surah.nameAr,
-                    fontSize: 32,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(surah.nameEn, style: AppTextStyles.playerTitle),
-                  const SizedBox(height: 4),
-                  Text('Surah ${surah.number}', style: AppTextStyles.caption),
-                  const SizedBox(height: 4),
-                  Text('Sheikh Bandar Baleelah | بندر بليلة',
-                      style: AppTextStyles.caption.copyWith(
-                          color: AppColors.gold.withOpacity(0.8))),
-
-                  const SizedBox(height: 24),
-
-                  // Progress bar
-                  AudioProgressBar(
-                    position: playerState.position,
-                    duration: playerState.duration,
-                    onSeek: (pos) {
-                      ref.read(playerNotifierProvider.notifier).seekTo(pos);
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Controls
-                  reciterAsync.when(
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                    data: (reciter) => Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        // Previous
-                        IconButton(
-                          iconSize: 36,
-                          icon: const Icon(Icons.skip_previous_rounded,
-                              color: AppColors.textLight),
-                          onPressed: () {
-                            ref
-                                .read(playerNotifierProvider.notifier)
-                                .playPrevious(reciter.surahs);
-                          },
-                        ),
-
-                        // Play / Pause
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.gold,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.gold.withOpacity(0.4),
-                                blurRadius: 20,
-                                spreadRadius: 2,
+              Expanded(
+                flex: 3,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      ArabicText(
+                        text: surah.nameAr,
+                        fontSize: 32,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(surah.nameEn, style: AppTextStyles.playerTitle),
+                      const SizedBox(height: 4),
+                      Text('Surah ${surah.number}', style: AppTextStyles.caption),
+                      const SizedBox(height: 4),
+                      Text('Sheikh Bandar Baleelah | بندر بليلة',
+                          style: AppTextStyles.caption.copyWith(
+                              color: AppColors.gold.withOpacity(0.8))),
+                      const SizedBox(height: 24),
+                      AudioProgressBar(
+                        position: playerState.position,
+                        duration: playerState.duration,
+                        onSeek: (pos) {
+                          context.read<PlayerBloc>().add(PlayerSeekRequested(pos));
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      BlocBuilder<ReciterBloc, ReciterState>(
+                        builder: (context, reciterState) {
+                          if (reciterState is! ReciterLoaded) {
+                            return const SizedBox.shrink();
+                          }
+                          final reciter = reciterState.reciter;
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              IconButton(
+                                iconSize: 36,
+                                icon: const Icon(Icons.skip_previous_rounded,
+                                    color: AppColors.textLight),
+                                onPressed: () {
+                                  context.read<PlayerBloc>().add(
+                                        PlayerPlayPreviousRequested(reciter.surahs),
+                                      );
+                                },
+                              ),
+                              Container(
+                                width: 72,
+                                height: 72,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.gold,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.gold.withOpacity(0.4),
+                                      blurRadius: 20,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: playerState.isLoading
+                                    ? const Center(
+                                        child: SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: AppColors.backgroundDark,
+                                          ),
+                                        ),
+                                      )
+                                    : IconButton(
+                                        iconSize: 36,
+                                        icon: Icon(
+                                          playerState.isPlaying
+                                              ? Icons.pause_rounded
+                                              : Icons.play_arrow_rounded,
+                                          color: AppColors.backgroundDark,
+                                        ),
+                                        onPressed: () {
+                                          context.read<PlayerBloc>().add(
+                                                const PlayerTogglePlayPauseRequested(),
+                                              );
+                                        },
+                                      ),
+                              ),
+                              IconButton(
+                                iconSize: 36,
+                                icon: const Icon(Icons.skip_next_rounded,
+                                    color: AppColors.textLight),
+                                onPressed: () {
+                                  context.read<PlayerBloc>().add(
+                                        PlayerPlayNextRequested(reciter.surahs),
+                                      );
+                                },
                               ),
                             ],
-                          ),
-                          child: playerState.isLoading
-                              ? const Center(
-                                  child: SizedBox(
-                                    width: 28,
-                                    height: 28,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: AppColors.backgroundDark,
-                                    ),
-                                  ),
-                                )
-                              : IconButton(
-                                  iconSize: 36,
-                                  icon: Icon(
-                                    playerState.isPlaying
-                                        ? Icons.pause_rounded
-                                        : Icons.play_arrow_rounded,
-                                    color: AppColors.backgroundDark,
-                                  ),
-                                  onPressed: () {
-                                    ref
-                                        .read(playerNotifierProvider.notifier)
-                                        .togglePlayPause();
-                                  },
-                                ),
-                        ),
-
-                        // Next
-                        IconButton(
-                          iconSize: 36,
-                          icon: const Icon(Icons.skip_next_rounded,
-                              color: AppColors.textLight),
-                          onPressed: () {
-                            ref
-                                .read(playerNotifierProvider.notifier)
-                                .playNext(reciter.surahs);
-                          },
-                        ),
-                      ],
-                    ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1698,35 +1849,38 @@ See Section 12 below — `JustAudioBackground.init()` is called before `runApp()
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'application/blocs/player/player_bloc.dart';
+import 'application/blocs/reciter/reciter_bloc.dart';
 import 'core/theme/app_theme.dart';
+import 'data/datasources/local/cache_datasource.dart';
+import 'data/datasources/remote/firestore_datasource.dart';
+import 'data/repositories/quran_repository_impl.dart';
+import 'domain/repositories/quran_repository.dart';
 import 'firebase_options.dart';
 import 'presentation/screens/splash/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Background audio
   await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.yourname.quranapp.channel.audio',
+    androidNotificationChannelId: 'com.bandarbaleelah.quranapp.channel.audio',
     androidNotificationChannelName: 'Quran Audio',
     androidNotificationOngoing: true,
     androidStopForegroundOnPause: true,
   );
 
-  // Force portrait orientation
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Status bar style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -1734,11 +1888,7 @@ Future<void> main() async {
     ),
   );
 
-  runApp(
-    const ProviderScope(
-      child: QuranApp(),
-    ),
-  );
+  runApp(const QuranApp());
 }
 
 class QuranApp extends StatelessWidget {
@@ -1746,11 +1896,37 @@ class QuranApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'تلاوات القرآن الكريم',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      home: const SplashScreen(),
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider<FirestoreDataSource>(
+          create: (_) => FirestoreDataSourceImpl(),
+        ),
+        RepositoryProvider<CacheDataSource>(
+          create: (_) => CacheDataSourceImpl(),
+        ),
+        RepositoryProvider<QuranRepository>(
+          create: (context) => QuranRepositoryImpl(
+            remote: context.read<FirestoreDataSource>(),
+            cache: context.read<CacheDataSource>(),
+          ),
+        ),
+      ],
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (context) => ReciterBloc(context.read<QuranRepository>()),
+          ),
+          BlocProvider(
+            create: (_) => PlayerBloc(AudioPlayer()),
+          ),
+        ],
+        child: MaterialApp(
+          title: 'تلاوات القرآن الكريم',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.darkTheme,
+          home: const SplashScreen(),
+        ),
+      ),
     );
   }
 }
@@ -1976,7 +2152,7 @@ Follow this exact order when coding:
 4. core/ (colors, theme, constants, utils)
 5. domain/ (entities + repository interface)
 6. data/ (models → datasources → repository impl)
-7. application/ (providers → notifiers)
+7. application/ (ReciterBloc + PlayerBloc)
 8. presentation/widgets/ (bottom-up: arabic_text → surah_card → progress_bar → mini_player)
 9. presentation/screens/ (splash → surah_list → player)
 10. main.dart
