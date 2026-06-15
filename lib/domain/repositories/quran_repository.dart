@@ -1,1 +1,7 @@
-// Placeholder — implemented in build guide Section 7 (Domain Layer)
+import '../entities/reciter.dart';
+
+// Abstract interface — the domain defines the contract
+// The data layer implements it
+abstract interface class QuranRepository {
+  Future<Reciter> fetchReciter(String reciterId);
+}
