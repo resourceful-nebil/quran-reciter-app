@@ -1,0 +1,56 @@
+name: quran_app
+description: Quran recitation app — Sheikh Bandar Baleelah
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^3.3.0
+  cloud_firestore: ^5.2.0
+
+  # Audio
+  just_audio: ^0.9.40
+  audio_service: ^0.18.13
+  just_audio_background: ^0.0.1-beta.12
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # UI
+  google_fonts: ^6.2.1
+  cached_network_image: ^3.3.1
+
+  # Storage / Cache
+  shared_preferences: ^2.3.1
+
+  # Utils
+  equatable: ^2.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.11
+  riverpod_generator: ^2.4.0
+  custom_lint: ^0.6.4
+  riverpod_lint: ^2.3.10
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+
+  fonts:
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700
