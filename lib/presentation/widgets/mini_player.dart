@@ -25,7 +25,7 @@ class MiniPlayer extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.primaryDarkTeal,
               border: Border(
-                top: BorderSide(color: AppColors.gold.withOpacity(0.3), width: 0.5),
+                top: BorderSide(color: AppColors.gold.withValues(alpha: 0.3), width: 0.5),
               ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),

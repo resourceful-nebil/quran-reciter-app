@@ -26,7 +26,7 @@ class SurahCard extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
           color: isPlaying
-              ? AppColors.primaryTeal.withOpacity(0.3)
+              ? AppColors.primaryTeal.withValues(alpha: 0.3)
               : AppColors.backgroundCard,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(

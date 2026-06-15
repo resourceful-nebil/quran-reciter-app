@@ -35,8 +35,8 @@ class PlayerScreen extends StatelessWidget {
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text('Now Playing', style: AppTextStyles.caption),
-            actions: [
-              const SizedBox(width: 16),
+            actions: const [
+              SizedBox(width: 16),
             ],
           ),
           body: Column(
@@ -49,12 +49,12 @@ class PlayerScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: AppColors.gold.withOpacity(0.4),
+                        color: AppColors.gold.withValues(alpha: 0.4),
                         width: 1,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primaryTeal.withOpacity(0.4),
+                          color: AppColors.primaryTeal.withValues(alpha: 0.4),
                           blurRadius: 30,
                           spreadRadius: 5,
                         ),
@@ -102,7 +102,7 @@ class PlayerScreen extends StatelessWidget {
                       Text(
                         'Sheikh Bandar Baleelah | بندر بليلة',
                         style: AppTextStyles.caption.copyWith(
-                          color: AppColors.gold.withOpacity(0.8),
+                          color: AppColors.gold.withValues(alpha: 0.8),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -143,7 +143,7 @@ class PlayerScreen extends StatelessWidget {
                                   color: AppColors.gold,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: AppColors.gold.withOpacity(0.4),
+                                      color: AppColors.gold.withValues(alpha: 0.4),
                                       blurRadius: 20,
                                       spreadRadius: 2,
                                     ),

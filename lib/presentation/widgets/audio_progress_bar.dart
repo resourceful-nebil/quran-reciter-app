@@ -24,12 +24,12 @@ class AudioProgressBar extends StatelessWidget {
     return Column(
       children: [
         SliderTheme(
-          data: SliderThemeData(
+          data: const SliderThemeData(
             activeTrackColor: AppColors.gold,
             inactiveTrackColor: AppColors.divider,
             thumbColor: AppColors.gold,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+            thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: RoundSliderOverlayShape(overlayRadius: 16),
             trackHeight: 3,
           ),
           child: Slider(
