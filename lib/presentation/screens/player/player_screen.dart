@@ -63,7 +63,7 @@ class PlayerScreen extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(20),
                       child: Image.asset(
-                        'assets/images/sheikh_photo.jpg',
+                        'assets/images/sheikh_photo.png',
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
                           color: AppColors.backgroundCard,

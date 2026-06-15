@@ -2105,7 +2105,7 @@ flutter build appbundle --release
 assets/
   images/
     logo.png           ← Your app logo (transparent bg, 512x512 min)
-    sheikh_photo.jpg   ← Sheikh Bandar's photo for the player screen
+    sheikh_photo.png   ← Sheikh photo for the player screen (same as logo is fine)
 ```
 
 ### Generate app icons from your logo
