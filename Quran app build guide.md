@@ -1813,28 +1813,46 @@ To enable **background audio** (plays when phone is locked or app is minimized),
 
 ### android/app/src/main/AndroidManifest.xml additions
 
-Inside `<application>`:
-```xml
-<service android:name="com.ryanheise.audioservice.AudioServiceFragment"
-    android:exported="true">
-  <intent-filter>
-    <action android:name="android.media.browse.MediaBrowserService" />
-  </intent-filter>
-</service>
+Add permissions at the top of `<manifest>`:
 
-<receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver"
-    android:exported="true">
-  <intent-filter>
-    <action android:name="android.intent.action.MEDIA_BUTTON" />
-  </intent-filter>
-</receiver>
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 ```
 
-Inside `<manifest>` (alongside other permissions):
+Inside `<application>`, change the main activity to `AudioServiceActivity` and add the service + receiver:
+
 ```xml
-<uses-permission android:name="android.permission.WAKE_LOCK" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <activity
+      android:name="com.ryanheise.audioservice.AudioServiceActivity"
+      android:exported="true"
+      ...>
+    ...
+  </activity>
+
+  <service
+      android:name="com.ryanheise.audioservice.AudioService"
+      android:foregroundServiceType="mediaPlayback"
+      android:exported="true"
+      tools:ignore="Instantiatable">
+    <intent-filter>
+      <action android:name="android.media.browse.MediaBrowserService" />
+    </intent-filter>
+  </service>
+
+  <receiver
+      android:name="com.ryanheise.audioservice.MediaButtonReceiver"
+      android:exported="true"
+      tools:ignore="Instantiatable">
+    <intent-filter>
+      <action android:name="android.intent.action.MEDIA_BUTTON" />
+    </intent-filter>
+  </receiver>
 ```
 
 ### Initialize in main.dart
