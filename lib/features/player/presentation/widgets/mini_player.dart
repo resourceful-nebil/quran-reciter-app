@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:quran_app/core/theme/app_colors.dart';
+import 'package:quran_app/core/theme/app_palette.dart';
 import 'package:quran_app/core/theme/app_text_styles.dart';
 import 'package:quran_app/features/player/presentation/bloc/player_bloc.dart';
 import 'package:quran_app/features/player/presentation/bloc/player_event.dart';
@@ -12,6 +12,8 @@ class MiniPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppPalette.of(context);
+
     return BlocBuilder<PlayerBloc, PlayerState>(
       builder: (context, playerState) {
         if (playerState.currentSurah == null) return const SizedBox.shrink();
@@ -23,10 +25,10 @@ class MiniPlayer extends StatelessWidget {
           child: Container(
             height: 64,
             decoration: BoxDecoration(
-              color: AppColors.primaryDarkTeal,
+              color: c.accent,
               border: Border(
                 top: BorderSide(
-                  color: AppColors.gold.withValues(alpha: 0.3),
+                  color: c.gold.withValues(alpha: 0.3),
                   width: 0.5,
                 ),
               ),
@@ -41,23 +43,28 @@ class MiniPlayer extends StatelessWidget {
                     children: [
                       Text(
                         playerState.currentSurah!.nameEn,
-                        style: AppTextStyles.surahTitle.copyWith(fontSize: 14),
+                        style: AppTextStyles.surahTitle(c).copyWith(
+                          fontSize: 14,
+                          color: c.onAccent,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         'Sheikh Bandar Baleelah',
-                        style: AppTextStyles.caption,
+                        style: AppTextStyles.caption(c).copyWith(
+                          color: c.goldLight,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 if (playerState.isLoading)
-                  const SizedBox(
+                  SizedBox(
                     width: 24,
                     height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: AppColors.gold,
+                      color: c.gold,
                     ),
                   )
                 else
@@ -66,7 +73,7 @@ class MiniPlayer extends StatelessWidget {
                       playerState.isPlaying
                           ? Icons.pause_rounded
                           : Icons.play_arrow_rounded,
-                      color: AppColors.gold,
+                      color: c.gold,
                       size: 32,
                     ),
                     onPressed: () {

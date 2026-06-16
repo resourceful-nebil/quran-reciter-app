@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:quran_app/core/theme/app_colors.dart';
+import 'package:quran_app/core/theme/app_palette.dart';
 import 'package:quran_app/core/theme/app_text_styles.dart';
-import 'package:quran_app/core/widgets/arabic_text.dart';
 import 'package:quran_app/features/player/presentation/bloc/player_bloc.dart';
 import 'package:quran_app/features/player/presentation/bloc/player_event.dart';
 import 'package:quran_app/features/player/presentation/bloc/player_state.dart';
 import 'package:quran_app/features/player/presentation/widgets/audio_progress_bar.dart';
 import 'package:quran_app/features/quran/presentation/bloc/reciter_bloc.dart';
 import 'package:quran_app/features/quran/presentation/bloc/reciter_state.dart';
+import 'package:quran_app/core/widgets/arabic_text.dart';
 
 class PlayerPage extends StatelessWidget {
   const PlayerPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final c = AppPalette.of(context);
+
     return BlocBuilder<PlayerBloc, PlayerState>(
       builder: (context, playerState) {
         final surah = playerState.currentSurah;
@@ -26,15 +28,15 @@ class PlayerPage extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: AppColors.backgroundDark,
+          backgroundColor: c.background,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             leading: IconButton(
-              icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                  color: AppColors.textLight, size: 32),
+              icon: Icon(Icons.keyboard_arrow_down_rounded,
+                  color: c.textPrimary, size: 32),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: Text('Now Playing', style: AppTextStyles.caption),
+            title: Text('Now Playing', style: AppTextStyles.caption(c)),
             actions: const [
               SizedBox(width: 16),
             ],
@@ -43,43 +45,39 @@ class PlayerPage extends StatelessWidget {
             top: false,
             child: Column(
               children: [
-                Expanded(
-                  flex: 4,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 16,
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppColors.gold.withValues(alpha: 0.4),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryTeal.withValues(alpha: 0.4),
-                            blurRadius: 30,
-                            spreadRadius: 5,
-                          ),
-                        ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(48, 8, 48, 0),
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: c.gold.withValues(alpha: 0.35),
+                        width: 1,
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.asset(
-                          'assets/images/sheikh_photo.png',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: AppColors.backgroundCard,
-                            child: const Center(
-                              child: Text(
-                                '﷽',
-                                style: TextStyle(
-                                  fontFamily: 'Amiri',
-                                  fontSize: 48,
-                                  color: AppColors.gold,
-                                ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: c.primary.withValues(alpha: 0.15),
+                          blurRadius: 16,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => ColoredBox(
+                          color: c.backgroundCard,
+                          child: Center(
+                            child: Text(
+                              '﷽',
+                              style: TextStyle(
+                                fontFamily: 'Amiri',
+                                fontSize: 36,
+                                color: c.gold,
                               ),
                             ),
                           ),
@@ -89,7 +87,6 @@ class PlayerPage extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  flex: 3,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: LayoutBuilder(
@@ -109,23 +106,23 @@ class PlayerPage extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(surah.nameEn,
-                                    style: AppTextStyles.playerTitle),
+                                    style: AppTextStyles.playerTitle(c)),
                                 const SizedBox(height: 4),
                                 Text('Surah ${surah.number}',
-                                    style: AppTextStyles.caption),
+                                    style: AppTextStyles.caption(c)),
                                 const SizedBox(height: 4),
                                 Text(
                                   'Sheikh Bandar Baleelah | بندر بليلة',
-                                  style: AppTextStyles.caption.copyWith(
-                                    color: AppColors.gold.withValues(alpha: 0.8),
+                                  style: AppTextStyles.caption(c).copyWith(
+                                    color: c.gold.withValues(alpha: 0.9),
                                   ),
                                 ),
                                 if (playerState.errorMessage != null) ...[
                                   const SizedBox(height: 8),
                                   Text(
                                     playerState.errorMessage!,
-                                    style: AppTextStyles.caption.copyWith(
-                                      color: AppColors.error,
+                                    style: AppTextStyles.caption(c).copyWith(
+                                      color: c.error,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -153,9 +150,9 @@ class PlayerPage extends StatelessWidget {
                                       children: [
                                         IconButton(
                                           iconSize: 36,
-                                          icon: const Icon(
+                                          icon: Icon(
                                             Icons.skip_previous_rounded,
-                                            color: AppColors.textLight,
+                                            color: c.textPrimary,
                                           ),
                                           onPressed: () {
                                             context.read<PlayerBloc>().add(
@@ -170,10 +167,10 @@ class PlayerPage extends StatelessWidget {
                                           height: 72,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: AppColors.gold,
+                                            color: c.gold,
                                             boxShadow: [
                                               BoxShadow(
-                                                color: AppColors.gold
+                                                color: c.gold
                                                     .withValues(alpha: 0.4),
                                                 blurRadius: 20,
                                                 spreadRadius: 2,
@@ -181,15 +178,14 @@ class PlayerPage extends StatelessWidget {
                                             ],
                                           ),
                                           child: playerState.isLoading
-                                              ? const Center(
+                                              ? Center(
                                                   child: SizedBox(
                                                     width: 28,
                                                     height: 28,
                                                     child:
                                                         CircularProgressIndicator(
                                                       strokeWidth: 2.5,
-                                                      color: AppColors
-                                                          .backgroundDark,
+                                                      color: c.accent,
                                                     ),
                                                   ),
                                                 )
@@ -200,8 +196,7 @@ class PlayerPage extends StatelessWidget {
                                                         ? Icons.pause_rounded
                                                         : Icons
                                                             .play_arrow_rounded,
-                                                    color: AppColors
-                                                        .backgroundDark,
+                                                    color: c.accent,
                                                   ),
                                                   onPressed: () {
                                                     context
@@ -214,9 +209,9 @@ class PlayerPage extends StatelessWidget {
                                         ),
                                         IconButton(
                                           iconSize: 36,
-                                          icon: const Icon(
+                                          icon: Icon(
                                             Icons.skip_next_rounded,
-                                            color: AppColors.textLight,
+                                            color: c.textPrimary,
                                           ),
                                           onPressed: () {
                                             context.read<PlayerBloc>().add(

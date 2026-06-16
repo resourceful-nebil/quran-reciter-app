@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:quran_app/core/theme/app_colors.dart';
+import 'package:quran_app/core/theme/app_palette.dart';
 import 'package:quran_app/core/theme/app_text_styles.dart';
 import 'package:quran_app/features/player/presentation/bloc/player_bloc.dart';
 import 'package:quran_app/features/player/presentation/bloc/player_event.dart';
@@ -11,21 +11,31 @@ import 'package:quran_app/features/quran/presentation/bloc/reciter_bloc.dart';
 import 'package:quran_app/features/quran/presentation/bloc/reciter_event.dart';
 import 'package:quran_app/features/quran/presentation/bloc/reciter_state.dart';
 import 'package:quran_app/features/quran/presentation/widgets/surah_card.dart';
+import 'package:quran_app/features/settings/presentation/widgets/theme_picker_sheet.dart';
 
 class SurahListPage extends StatelessWidget {
   const SurahListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final c = AppPalette.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
           children: [
             Text('القرآن الكريم',
-                style: AppTextStyles.arabicMedium.copyWith(fontSize: 18)),
-            Text('Sheikh Bandar Baleelah', style: AppTextStyles.caption),
+                style: AppTextStyles.arabicMedium(c).copyWith(fontSize: 18)),
+            Text('Sheikh Bandar Baleelah', style: AppTextStyles.caption(c)),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.palette_outlined, color: c.gold),
+            tooltip: 'Theme',
+            onPressed: () => ThemePickerSheet.show(context),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
@@ -35,25 +45,24 @@ class SurahListPage extends StatelessWidget {
               child: BlocBuilder<ReciterBloc, ReciterState>(
                 builder: (context, reciterState) {
                   return switch (reciterState) {
-                    ReciterInitial() || ReciterLoading() => const Center(
-                        child:
-                            CircularProgressIndicator(color: AppColors.gold),
+                    ReciterInitial() || ReciterLoading() => Center(
+                        child: CircularProgressIndicator(color: c.gold),
                       ),
                     ReciterError(:final message) => Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.wifi_off_rounded,
-                                color: AppColors.textMuted, size: 48),
+                            Icon(Icons.wifi_off_rounded,
+                                color: c.textMuted, size: 48),
                             const SizedBox(height: 16),
-                            Text(message, style: AppTextStyles.surahTitle),
+                            Text(message, style: AppTextStyles.surahTitle(c)),
                             const SizedBox(height: 8),
                             TextButton(
                               onPressed: () => context.read<ReciterBloc>().add(
                                     const ReciterRetryRequested(),
                                   ),
-                              child: const Text('Retry',
-                                  style: TextStyle(color: AppColors.gold)),
+                              child: Text('Retry',
+                                  style: TextStyle(color: c.gold)),
                             ),
                           ],
                         ),

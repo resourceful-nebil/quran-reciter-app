@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:quran_app/core/theme/app_colors.dart';
+import 'package:quran_app/core/theme/app_palette.dart';
 import 'package:quran_app/core/theme/app_text_styles.dart';
 import 'package:quran_app/core/widgets/arabic_text.dart';
 import 'package:quran_app/features/quran/domain/entities/surah.dart';
@@ -20,17 +20,19 @@ class SurahCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppPalette.of(context);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
           color: isPlaying
-              ? AppColors.primaryTeal.withValues(alpha: 0.3)
-              : AppColors.backgroundCard,
+              ? c.primary.withValues(alpha: 0.3)
+              : c.backgroundCard,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isPlaying ? AppColors.gold : AppColors.divider,
+            color: isPlaying ? c.gold : c.divider,
             width: isPlaying ? 1.5 : 0.5,
           ),
         ),
@@ -44,30 +46,29 @@ class SurahCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isPlaying ? AppColors.gold : AppColors.primaryTeal,
+                    color: isPlaying ? c.gold : c.primary,
                     width: 1,
                   ),
                 ),
                 child: Center(
                   child: isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 1.5,
-                            color: AppColors.gold,
+                            color: c.gold,
                           ),
                         )
                       : isPlaying
-                          ? const Icon(
+                          ? Icon(
                               Icons.volume_up_rounded,
                               size: 18,
-                              color: AppColors.gold,
+                              color: c.gold,
                             )
                           : Text(
                               '${surah.number}',
-                              style: AppTextStyles.surahNumber.copyWith(
-                                color: AppColors.textMuted,
+                              style: AppTextStyles.surahNumber(c).copyWith(
                                 fontSize: 12,
                               ),
                             ),
@@ -80,22 +81,19 @@ class SurahCard extends StatelessWidget {
                   children: [
                     Text(
                       surah.nameEn,
-                      style: AppTextStyles.surahTitle.copyWith(
-                        color: isPlaying ? AppColors.gold : AppColors.textLight,
+                      style: AppTextStyles.surahTitle(c).copyWith(
+                        color: isPlaying ? c.gold : c.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      'Surah ${surah.number}',
-                      style: AppTextStyles.caption,
-                    ),
+                    Text('Surah ${surah.number}', style: AppTextStyles.caption(c)),
                   ],
                 ),
               ),
               ArabicText(
                 text: surah.nameAr,
                 fontSize: 18,
-                color: isPlaying ? AppColors.gold : AppColors.textMuted,
+                color: isPlaying ? c.gold : c.textArabic,
               ),
             ],
           ),

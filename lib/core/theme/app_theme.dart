@@ -1,31 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:quran_app/core/theme/app_colors.dart';
 import 'package:quran_app/core/theme/app_text_styles.dart';
+import 'package:quran_app/core/theme/app_theme_variant.dart';
 
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get darkTheme {
+  static ThemeData fromVariant(AppThemeVariant variant) {
+    final palette = variant.palette;
+    final isDark = palette.isDark;
+
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.backgroundDark,
-      primaryColor: AppColors.primaryTeal,
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.primaryTeal,
-        secondary: AppColors.gold,
-        surface: AppColors.backgroundCard,
-        error: AppColors.error,
+      brightness: palette.brightness,
+      scaffoldBackgroundColor: palette.background,
+      primaryColor: palette.primary,
+      extensions: [palette],
+      colorScheme: ColorScheme(
+        brightness: palette.brightness,
+        primary: palette.primary,
+        onPrimary: palette.onAccent,
+        secondary: palette.gold,
+        onSecondary: palette.accent,
+        surface: palette.backgroundCard,
+        onSurface: palette.textPrimary,
+        error: palette.error,
+        onError: palette.onAccent,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.backgroundDark,
+        backgroundColor: palette.background,
+        foregroundColor: palette.textPrimary,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: AppTextStyles.surahTitle.copyWith(fontSize: 18),
-        systemOverlayStyle: SystemUiOverlayStyle.light,
+        titleTextStyle: AppTextStyles.surahTitle(palette).copyWith(fontSize: 18),
+        systemOverlayStyle: isDark
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
       ),
-      dividerColor: AppColors.divider,
+      dividerColor: palette.divider,
     );
   }
 }

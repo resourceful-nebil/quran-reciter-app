@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:quran_app/core/theme/app_colors.dart';
+import 'package:quran_app/core/theme/app_palette.dart';
 import 'package:quran_app/core/theme/app_text_styles.dart';
 import 'package:quran_app/core/utils/duration_formatter.dart';
 
@@ -17,6 +17,7 @@ class AudioProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppPalette.of(context);
     final progress = duration.inMilliseconds > 0
         ? position.inMilliseconds / duration.inMilliseconds
         : 0.0;
@@ -24,12 +25,12 @@ class AudioProgressBar extends StatelessWidget {
     return Column(
       children: [
         SliderTheme(
-          data: const SliderThemeData(
-            activeTrackColor: AppColors.gold,
-            inactiveTrackColor: AppColors.divider,
-            thumbColor: AppColors.gold,
-            thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
-            overlayShape: RoundSliderOverlayShape(overlayRadius: 16),
+          data: SliderThemeData(
+            activeTrackColor: c.gold,
+            inactiveTrackColor: c.divider,
+            thumbColor: c.gold,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
             trackHeight: 3,
           ),
           child: Slider(
@@ -48,9 +49,9 @@ class AudioProgressBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(DurationFormatter.format(position),
-                  style: AppTextStyles.caption),
+                  style: AppTextStyles.caption(c)),
               Text(DurationFormatter.format(duration),
-                  style: AppTextStyles.caption),
+                  style: AppTextStyles.caption(c)),
             ],
           ),
         ),

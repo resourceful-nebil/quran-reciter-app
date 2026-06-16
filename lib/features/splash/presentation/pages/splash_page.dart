@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:quran_app/core/theme/app_colors.dart';
+import 'package:quran_app/core/theme/app_palette.dart';
 import 'package:quran_app/core/theme/app_text_styles.dart';
 import 'package:quran_app/features/quran/presentation/bloc/reciter_bloc.dart';
 import 'package:quran_app/features/quran/presentation/bloc/reciter_event.dart';
@@ -51,8 +51,10 @@ class _SplashPageState extends State<SplashPage>
 
   @override
   Widget build(BuildContext context) {
+    final c = AppPalette.of(context);
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: c.background,
       body: SafeArea(
         child: Center(
           child: FadeTransition(
@@ -66,28 +68,28 @@ class _SplashPageState extends State<SplashPage>
                     'assets/images/logo.png',
                     width: 120,
                     height: 120,
-                    errorBuilder: (_, __, ___) => const Icon(
+                    errorBuilder: (_, __, ___) => Icon(
                       Icons.menu_book_rounded,
                       size: 80,
-                      color: AppColors.gold,
+                      color: c.gold,
                     ),
                   ),
                   const SizedBox(height: 32),
-                  const Text(
+                  Text(
                     'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
                     textDirection: TextDirection.rtl,
                     style: TextStyle(
                       fontFamily: 'Amiri',
                       fontSize: 22,
-                      color: AppColors.gold,
+                      color: c.gold,
                       height: 2,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'تلاوات القرآن الكريم',
-                    style: AppTextStyles.arabicMedium.copyWith(
-                      color: AppColors.textMuted,
+                    style: AppTextStyles.arabicMedium(c).copyWith(
+                      color: c.textMuted,
                       fontSize: 16,
                     ),
                     textDirection: TextDirection.rtl,
@@ -95,7 +97,7 @@ class _SplashPageState extends State<SplashPage>
                   const SizedBox(height: 4),
                   Text(
                     'Sheikh Bandar Baleelah',
-                    style: AppTextStyles.caption,
+                    style: AppTextStyles.caption(c),
                   ),
                 ],
               ),
