@@ -2,17 +2,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'application/blocs/player/player_bloc.dart';
-import 'application/blocs/reciter/reciter_bloc.dart';
-import 'core/theme/app_theme.dart';
-import 'data/datasources/local/cache_datasource.dart';
-import 'data/datasources/remote/firestore_datasource.dart';
-import 'data/repositories/quran_repository_impl.dart';
-import 'domain/repositories/quran_repository.dart';
-import 'firebase_options.dart';
-import 'presentation/screens/splash/splash_screen.dart';
+import 'package:quran_app/core/di/injection_container.dart';
+import 'package:quran_app/core/theme/app_theme.dart';
+import 'package:quran_app/features/player/presentation/bloc/player_bloc.dart';
+import 'package:quran_app/features/quran/presentation/bloc/reciter_bloc.dart';
+import 'package:quran_app/features/splash/presentation/pages/splash_page.dart';
+import 'package:quran_app/firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +23,8 @@ Future<void> main() async {
     androidNotificationOngoing: true,
     androidStopForegroundOnPause: true,
   );
+
+  await initDependencies();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -48,36 +46,16 @@ class QuranApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiRepositoryProvider(
+    return MultiBlocProvider(
       providers: [
-        RepositoryProvider<FirestoreDataSource>(
-          create: (_) => FirestoreDataSourceImpl(),
-        ),
-        RepositoryProvider<CacheDataSource>(
-          create: (_) => CacheDataSourceImpl(),
-        ),
-        RepositoryProvider<QuranRepository>(
-          create: (context) => QuranRepositoryImpl(
-            remote: context.read<FirestoreDataSource>(),
-            cache: context.read<CacheDataSource>(),
-          ),
-        ),
+        BlocProvider(create: (_) => sl<ReciterBloc>()),
+        BlocProvider(create: (_) => sl<PlayerBloc>()),
       ],
-      child: MultiBlocProvider(
-        providers: [
-          BlocProvider(
-            create: (context) => ReciterBloc(context.read<QuranRepository>()),
-          ),
-          BlocProvider(
-            create: (_) => PlayerBloc(AudioPlayer()),
-          ),
-        ],
-        child: MaterialApp(
-          title: 'تلاوات القرآن الكريم',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.darkTheme,
-          home: const SplashScreen(),
-        ),
+      child: MaterialApp(
+        title: 'تلاوات القرآن الكريم',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+        home: const SplashPage(),
       ),
     );
   }
